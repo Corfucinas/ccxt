@@ -68,10 +68,10 @@ class kuna(acx):
         markets = []
         response = self.publicGetTickers(params)
         ids = list(response.keys())
-        for i in range(0, len(ids)):
-            id = ids[i]
-            for j in range(0, len(quotes)):
-                quoteId = quotes[j]
+        for id_ in ids:
+            id = id_
+            for quote_ in quotes:
+                quoteId = quote_
                 index = id.find(quoteId)
                 slice = id[index:]
                 if (index > 0) and (slice == quoteId):
@@ -186,8 +186,8 @@ class kuna(acx):
         trades = self.fetch_trades(symbol, since, limits, params)
         ohlcvc = self.build_ohlcvc(trades, timeframe, since, limits)
         result = []
-        for i in range(0, len(ohlcvc)):
-            ohlcv = ohlcvc[i]
+        for item in ohlcvc:
+            ohlcv = item
             result.append([
                 ohlcv[0],
                 ohlcv[1],

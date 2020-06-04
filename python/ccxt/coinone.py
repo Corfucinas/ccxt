@@ -111,8 +111,8 @@ class coinone(Exchange):
         quoteId = 'krw'
         quote = self.safe_currency_code(quoteId)
         baseIds = list(response.keys())
-        for i in range(0, len(baseIds)):
-            baseId = baseIds[i]
+        for baseId_ in baseIds:
+            baseId = baseId_
             ticker = self.safe_value(response, baseId, {})
             currency = self.safe_value(ticker, 'currency')
             if currency is None:
@@ -139,8 +139,8 @@ class coinone(Exchange):
             'normalWallets',
         ])
         currencyIds = list(balances.keys())
-        for i in range(0, len(currencyIds)):
-            currencyId = currencyIds[i]
+        for currencyId_ in currencyIds:
+            currencyId = currencyId_
             balance = balances[currencyId]
             code = self.safe_currency_code(currencyId)
             account = self.account()
@@ -170,8 +170,8 @@ class coinone(Exchange):
         result = {}
         ids = list(response.keys())
         timestamp = self.safe_timestamp(response, 'timestamp')
-        for i in range(0, len(ids)):
-            id = ids[i]
+        for id_ in ids:
+            id = id_
             symbol = id
             market = None
             if id in self.markets_by_id:
@@ -235,16 +235,15 @@ class coinone(Exchange):
         symbol = market['symbol'] if (market is not None) else None
         is_ask = self.safe_string(trade, 'is_ask')
         side = None
-        if is_ask == '1':
-            side = 'sell'
-        elif is_ask == '0':
+        if is_ask == '0':
             side = 'buy'
+        elif is_ask == '1':
+            side = 'sell'
         price = self.safe_float(trade, 'price')
         amount = self.safe_float(trade, 'qty')
         cost = None
-        if price is not None:
-            if amount is not None:
-                cost = price * amount
+        if price is not None and amount is not None:
+            cost = price * amount
         return {
             'id': self.safe_string(trade, 'id'),
             'info': trade,
@@ -331,12 +330,9 @@ class coinone(Exchange):
             result = self.parse_order(response)
             self.orders[id] = result
         except Exception as e:
-            if isinstance(e, OrderNotFound):
-                if id in self.orders:
-                    self.orders[id]['status'] = 'canceled'
-                    result = self.orders[id]
-                else:
-                    raise e
+            if isinstance(e, OrderNotFound) and id in self.orders:
+                self.orders[id]['status'] = 'canceled'
+                result = self.orders[id]
             else:
                 raise e
         return result
@@ -367,10 +363,7 @@ class coinone(Exchange):
         status = self.parse_order_status(self.safe_string(order, 'status'))
         cost = None
         side = self.safe_string(info, 'type')
-        if side.find('ask') >= 0:
-            side = 'sell'
-        else:
-            side = 'buy'
+        side = 'sell' if side.find('ask') >= 0 else 'buy'
         price = self.safe_float(info, 'price')
         amount = self.safe_float(info, 'qty')
         remaining = self.safe_float(info, 'remainQty')

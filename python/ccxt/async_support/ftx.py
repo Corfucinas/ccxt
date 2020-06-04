@@ -199,8 +199,8 @@ class ftx(Exchange):
         #     }
         #
         result = {}
-        for i in range(0, len(currencies)):
-            currency = currencies[i]
+        for currency_ in currencies:
+            currency = currency_
             id = self.safe_string(currency, 'id')
             code = self.safe_currency_code(id)
             name = self.safe_string(currency, 'name')
@@ -271,8 +271,8 @@ class ftx(Exchange):
         #
         result = []
         markets = self.safe_value(response, 'result', [])
-        for i in range(0, len(markets)):
-            market = markets[i]
+        for market_ in markets:
+            market = market_
             id = self.safe_string(market, 'name')
             baseId = self.safe_string_2(market, 'baseCurrency', 'underlying')
             quoteId = self.safe_string(market, 'quoteCurrency', 'USD')
@@ -416,9 +416,7 @@ class ftx(Exchange):
         return self.parse_ticker(result, market)
 
     def parse_tickers(self, tickers, symbols=None):
-        result = []
-        for i in range(0, len(tickers)):
-            result.append(self.parse_ticker(tickers[i]))
+        result = [self.parse_ticker(ticker) for ticker in tickers]
         return self.filter_by_array(result, 'symbol', symbols)
 
     async def fetch_tickers(self, symbols=None, params={}):
@@ -607,10 +605,7 @@ class ftx(Exchange):
             else:
                 base = self.safe_currency_code(self.safe_string(trade, 'baseCurrency'))
                 quote = self.safe_currency_code(self.safe_string(trade, 'quoteCurrency'))
-                if (base is not None) and (quote is not None):
-                    symbol = base + '/' + quote
-                else:
-                    symbol = marketId
+                symbol = marketId if base is None or quote is None else base + '/' + quote
         timestamp = self.parse8601(self.safe_string(trade, 'time'))
         price = self.safe_float(trade, 'price')
         amount = self.safe_float(trade, 'size')
@@ -618,7 +613,7 @@ class ftx(Exchange):
             symbol = market['symbol']
         side = self.safe_string(trade, 'side')
         cost = None
-        if price is not None and amount is not None:
+        if not (price is None or amount is None):
             cost = price * amount
         fee = None
         feeCost = self.safe_float(trade, 'fee')
@@ -752,8 +747,8 @@ class ftx(Exchange):
             'info': response,
         }
         balances = self.safe_value(response, 'result', [])
-        for i in range(0, len(balances)):
-            balance = balances[i]
+        for balance_ in balances:
+            balance = balance_
             code = self.safe_currency_code(self.safe_string(balance, 'coin'))
             account = self.account()
             account['free'] = self.safe_float(balance, 'free')
@@ -902,7 +897,7 @@ class ftx(Exchange):
         elif type == 'market':
             method = 'privatePostOrders'
             request['price'] = None
-        elif (type == 'stop') or (type == 'takeProfit'):
+        elif type in ['stop', 'takeProfit']:
             request['triggerPrice'] = priceToPrecision
             # request['orderPrice'] = number  # optional, order type is limit if self is specified, otherwise market
         elif type == 'trailingStop':
@@ -1005,14 +1000,13 @@ class ftx(Exchange):
         if marketId is not None:
             request['market'] = marketId
         response = await self.privateDeleteOrders(self.extend(request, params))
-        result = self.safe_value(response, 'result', {})
         #
-        #     {
-        #         "success": True,
-        #         "result": "Orders queued for cancelation"
-        #     }
-        #
-        return result
+            #     {
+            #         "success": True,
+            #         "result": "Orders queued for cancelation"
+            #     }
+            #
+        return self.safe_value(response, 'result', {})
 
     async def fetch_order(self, id, symbol=None, params={}):
         await self.load_markets()
@@ -1064,7 +1058,7 @@ class ftx(Exchange):
         defaultMethod = self.safe_string(options, 'method', 'privateGetOrders')
         method = self.safe_string(params, 'method', defaultMethod)
         type = self.safe_value(params, 'type')
-        if (type == 'stop') or (type == 'trailingStop') or (type == 'takeProfit'):
+        if type in ['stop', 'trailingStop', 'takeProfit']:
             method = 'privateGetConditionalOrders'
         query = self.omit(params, ['method', 'type'])
         response = await getattr(self, method)(self.extend(request, query))
@@ -1112,7 +1106,7 @@ class ftx(Exchange):
         defaultMethod = self.safe_string(options, 'method', 'privateGetOrdersHistory')
         method = self.safe_string(params, 'method', defaultMethod)
         type = self.safe_value(params, 'type')
-        if (type == 'stop') or (type == 'trailingStop') or (type == 'takeProfit'):
+        if type in ['stop', 'trailingStop', 'takeProfit']:
             method = 'privateGetConditionalOrdersHistory'
         query = self.omit(params, ['method', 'type'])
         response = await getattr(self, method)(self.extend(request, query))
@@ -1365,11 +1359,10 @@ class ftx(Exchange):
         request = '/api/' + self.implode_params(path, params)
         query = self.omit(params, self.extract_params(path))
         url = self.urls['api'][api] + request
-        if method != 'POST':
-            if query:
-                suffix = '?' + self.urlencode(query)
-                url += suffix
-                request += suffix
+        if method != 'POST' and query:
+            suffix = '?' + self.urlencode(query)
+            url += suffix
+            request += suffix
         if api == 'private':
             self.check_required_credentials()
             timestamp = str(self.milliseconds())

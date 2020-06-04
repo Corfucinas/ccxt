@@ -179,8 +179,8 @@ class bigone(Exchange):
         #
         markets = self.safe_value(response, 'data', [])
         result = []
-        for i in range(0, len(markets)):
-            market = markets[i]
+        for market_ in markets:
+            market = market_
             id = self.safe_string(market, 'name')
             uuid = self.safe_string(market, 'id')
             baseAsset = self.safe_value(market, 'base_asset', {})
@@ -229,8 +229,8 @@ class bigone(Exchange):
         marketsByUuid = self.safe_value(self.options, 'marketsByUuid')
         if (marketsByUuid is None) or reload:
             marketsByUuid = {}
-            for i in range(0, len(self.symbols)):
-                symbol = self.symbols[i]
+            for symbol_ in self.symbols:
+                symbol = symbol_
                 market = self.markets[symbol]
                 uuid = self.safe_string(market, 'uuid')
                 marketsByUuid[uuid] = market
@@ -355,8 +355,8 @@ class bigone(Exchange):
         #
         tickers = self.safe_value(response, 'data', [])
         result = {}
-        for i in range(0, len(tickers)):
-            ticker = self.parse_ticker(tickers[i])
+        for ticker_ in tickers:
+            ticker = self.parse_ticker(ticker_)
             symbol = ticker['symbol']
             result[symbol] = ticker
         return result
@@ -445,13 +445,12 @@ class bigone(Exchange):
         if (symbol is None) and (market is not None):
             symbol = market['symbol']
         cost = None
-        if amount is not None:
-            if price is not None:
-                cost = self.cost_to_precision(symbol, price * amount)
+        if amount is not None and price is not None:
+            cost = self.cost_to_precision(symbol, price * amount)
         side = self.safe_string(trade, 'side')
         takerSide = self.safe_string(trade, 'taker_side')
         takerOrMaker = None
-        if (takerSide is not None) and (side is not None) and (side != 'SELF_TRADING'):
+        if not (takerSide is None or side is None or side == 'SELF_TRADING'):
             takerOrMaker = 'taker' if (takerSide == side) else 'maker'
         if side is None:
             # taker side is not related to buy/sell side
@@ -489,28 +488,25 @@ class bigone(Exchange):
         }
         makerCurrencyCode = None
         takerCurrencyCode = None
-        if (market is not None) and (takerOrMaker is not None):
-            if side == 'buy':
-                if takerOrMaker == 'maker':
-                    makerCurrencyCode = market['base']
-                    takerCurrencyCode = market['quote']
-                else:
-                    makerCurrencyCode = market['quote']
-                    takerCurrencyCode = market['base']
-            else:
-                if takerOrMaker == 'maker':
-                    makerCurrencyCode = market['quote']
-                    takerCurrencyCode = market['base']
-                else:
-                    makerCurrencyCode = market['base']
-                    takerCurrencyCode = market['quote']
-        elif side == 'SELF_TRADING':
-            if takerSide == 'BID':
-                makerCurrencyCode = market['quote']
-                takerCurrencyCode = market['base']
-            elif takerSide == 'ASK':
+        if not (market is None or takerOrMaker is None):
+            if (
+                side == 'buy'
+                and takerOrMaker == 'maker'
+                or side != 'buy'
+                and takerOrMaker != 'maker'
+            ):
                 makerCurrencyCode = market['base']
                 takerCurrencyCode = market['quote']
+            else:
+                makerCurrencyCode = market['quote']
+                takerCurrencyCode = market['base']
+        elif side == 'SELF_TRADING':
+            if takerSide == 'ASK':
+                makerCurrencyCode = market['base']
+                takerCurrencyCode = market['quote']
+            elif takerSide == 'BID':
+                makerCurrencyCode = market['quote']
+                takerCurrencyCode = market['base']
         makerFeeCost = self.safe_float(trade, 'maker_fee')
         takerFeeCost = self.safe_float(trade, 'taker_fee')
         if makerFeeCost is not None:
@@ -634,8 +630,8 @@ class bigone(Exchange):
         #
         result = {'info': response}
         balances = self.safe_value(response, 'data', [])
-        for i in range(0, len(balances)):
-            balance = balances[i]
+        for balance_ in balances:
+            balance = balance_
             symbol = self.safe_string(balance, 'asset_symbol')
             code = self.safe_currency_code(symbol)
             account = self.account()
@@ -682,14 +678,10 @@ class bigone(Exchange):
             remaining = max(0, amount - filled)
         status = self.parse_order_status(self.safe_string(order, 'state'))
         side = self.safe_string(order, 'side')
-        if side == 'BID':
-            side = 'buy'
-        else:
-            side = 'sell'
+        side = 'buy' if side == 'BID' else 'sell'
         cost = None
-        if filled is not None:
-            if price is not None:
-                cost = filled * price
+        if filled is not None and price is not None:
+            cost = filled * price
         lastTradeTimestamp = self.parse8601(self.safe_string(order, 'updated_at'))
         average = self.safe_float(order, 'avg_deal_price')
         return {

@@ -357,8 +357,8 @@ class bybit(Exchange):
         options = self.safe_value(self.options, 'fetchMarkets', {})
         linearQuoteCurrencies = self.safe_value(options, 'linear', {'USDT': True})
         result = []
-        for i in range(0, len(markets)):
-            market = markets[i]
+        for market_ in markets:
+            market = market_
             id = self.safe_string(market, 'name')
             baseId = self.safe_string(market, 'base_currency')
             quoteId = self.safe_string(market, 'quote_currency')
@@ -453,8 +453,8 @@ class bybit(Exchange):
         }
         balances = self.safe_value(response, 'result', {})
         currencyIds = list(balances.keys())
-        for i in range(0, len(currencyIds)):
-            currencyId = currencyIds[i]
+        for currencyId_ in currencyIds:
+            currencyId = currencyId_
             balance = balances[currencyId]
             code = self.safe_currency_code(currencyId)
             account = self.account()
@@ -631,8 +631,8 @@ class bybit(Exchange):
         #
         result = self.safe_value(response, 'result', [])
         tickers = {}
-        for i in range(0, len(result)):
-            ticker = self.parse_ticker(result[i])
+        for item in result:
+            ticker = self.parse_ticker(item)
             symbol = ticker['symbol']
             tickers[symbol] = ticker
         return self.filter_by_array(tickers, 'symbol', symbols)
@@ -802,14 +802,11 @@ class bybit(Exchange):
                 symbol = market['symbol']
                 base = market['base']
             # if private trade
-            if 'exec_fee' in trade:
-                if market['inverse']:
-                    amount = self.safe_float(trade, 'exec_value')
-                    cost = self.safe_float(trade, 'exec_qty')
-        if cost is None:
-            if amount is not None:
-                if price is not None:
-                    cost = amount * price
+            if 'exec_fee' in trade and market['inverse']:
+                amount = self.safe_float(trade, 'exec_value')
+                cost = self.safe_float(trade, 'exec_qty')
+        if cost is None and amount is not None and price is not None:
+            cost = amount * price
         timestamp = self.parse8601(self.safe_string(trade, 'time'))
         if timestamp is None:
             timestamp = self.safe_integer(trade, 'trade_time_ms')
@@ -878,8 +875,8 @@ class bybit(Exchange):
     def parse_order_book(self, orderbook, timestamp=None, bidsKey='Buy', asksKey='Sell', priceKey='price', amountKey='size'):
         bids = []
         asks = []
-        for i in range(0, len(orderbook)):
-            bidask = orderbook[i]
+        for item in orderbook:
+            bidask = item
             side = self.safe_string(bidask, 'side')
             if side == 'Buy':
                 bids.append(self.parse_bid_ask(bidask, priceKey, amountKey))
@@ -1033,9 +1030,8 @@ class bybit(Exchange):
         if filled is not None:
             if (remaining is None) and (amount is not None):
                 remaining = amount - filled
-            if cost is None:
-                if price is not None:
-                    cost = price * filled
+            if cost is None and price is not None:
+                cost = price * filled
         status = self.parse_order_status(self.safe_string(order, 'order_status'))
         side = self.safe_string_lower(order, 'side')
         feeCost = self.safe_float(order, 'cum_exec_fee')
@@ -1203,16 +1199,18 @@ class bybit(Exchange):
         marketTypes = self.safe_value(self.options, 'marketTypes', {})
         marketType = self.safe_string(marketTypes, symbol)
         method = 'privateLinearPostOrderCreate' if (marketType == 'linear') else 'privatePostOrderCreate'
-        if stopPx is not None:
-            if basePrice is None:
-                raise ArgumentsRequired(self.id + ' createOrder requires both the stop_px and base_price params for a conditional ' + type + ' order')
-            else:
-                method = 'privateLinearPostStopOrderCreate' if (marketType == 'linear') else 'openapiPostStopOrderCreate'
-                request['stop_px'] = self.price_to_precision(symbol, stopPx)
-                request['base_price'] = self.price_to_precision(symbol, basePrice)
-                params = self.omit(params, ['stop_px', 'base_price'])
-        elif basePrice is not None:
+        if (
+            stopPx is not None
+            and basePrice is None
+            or stopPx is None
+            and basePrice is not None
+        ):
             raise ArgumentsRequired(self.id + ' createOrder requires both the stop_px and base_price params for a conditional ' + type + ' order')
+        elif stopPx is not None:
+            method = 'privateLinearPostStopOrderCreate' if (marketType == 'linear') else 'openapiPostStopOrderCreate'
+            request['stop_px'] = self.price_to_precision(symbol, stopPx)
+            request['base_price'] = self.price_to_precision(symbol, basePrice)
+            params = self.omit(params, ['stop_px', 'base_price'])
         response = getattr(self, method)(self.extend(request, params))
         #
         #     {

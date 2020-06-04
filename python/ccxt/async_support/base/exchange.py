@@ -155,11 +155,10 @@ class Exchange(BaseExchange):
         return response.content
 
     async def load_markets_helper(self, reload=False, params={}):
-        if not reload:
-            if self.markets:
-                if not self.markets_by_id:
-                    return self.set_markets(self.markets)
-                return self.markets
+        if not reload and self.markets:
+            if not self.markets_by_id:
+                return self.set_markets(self.markets)
+            return self.markets
         currencies = None
         if self.has['fetchCurrencies']:
             currencies = await self.fetch_currencies()
@@ -194,9 +193,8 @@ class Exchange(BaseExchange):
         }
 
     async def load_fees(self, reload=False):
-        if not reload:
-            if self.loaded_fees != Exchange.loaded_fees:
-                return self.loaded_fees
+        if not reload and self.loaded_fees != Exchange.loaded_fees:
+            return self.loaded_fees
         self.loaded_fees = self.deep_extend(self.loaded_fees, await self.fetch_fees())
         return self.loaded_fees
 
@@ -278,23 +276,21 @@ class Exchange(BaseExchange):
         return await self.fetch_trading_fees(params)
 
     async def load_trading_limits(self, symbols=None, reload=False, params={}):
-        if self.has['fetchTradingLimits']:
-            if reload or not('limitsLoaded' in list(self.options.keys())):
-                response = await self.fetch_trading_limits(symbols)
-                for i in range(0, len(symbols)):
-                    symbol = symbols[i]
-                    self.markets[symbol] = self.deep_extend(self.markets[symbol], response[symbol])
-                self.options['limitsLoaded'] = self.milliseconds()
+        if self.has['fetchTradingLimits'] and (
+            reload or 'limitsLoaded' not in list(self.options.keys())
+        ):
+            response = await self.fetch_trading_limits(symbols)
+            for symbol_ in symbols:
+                symbol = symbol_
+                self.markets[symbol] = self.deep_extend(self.markets[symbol], response[symbol])
+            self.options['limitsLoaded'] = self.milliseconds()
         return self.markets
 
     async def load_accounts(self, reload=False, params={}):
-        if reload:
-            self.accounts = await self.fetch_accounts(params)
+        if not reload and self.accounts:
+            return self.accounts
         else:
-            if self.accounts:
-                return self.accounts
-            else:
-                self.accounts = await self.fetch_accounts(params)
+            self.accounts = await self.fetch_accounts(params)
         self.accountsById = self.index_by(self.accounts, 'id')
         return self.accounts
 

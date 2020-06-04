@@ -381,7 +381,7 @@ class binance(Exchange):
         defaultType = self.safe_string_2(self.options, 'fetchMarkets', 'defaultType', 'spot')
         type = self.safe_string(params, 'type', defaultType)
         query = self.omit(params, 'type')
-        if (type != 'spot') and (type != 'future') and (type != 'margin'):
+        if type not in ['spot', 'future', 'margin']:
             raise ExchangeError(self.id + " does not support '" + type + "' type, set exchange.options['defaultType'] to 'spot', 'margin' or 'future'")  # eslint-disable-line quotes
         method = 'fapiPublicGetExchangeInfo' if (type == 'future') else 'publicGetExchangeInfo'
         response = getattr(self, method)(query)
@@ -465,8 +465,8 @@ class binance(Exchange):
             self.load_time_difference()
         markets = self.safe_value(response, 'symbols')
         result = []
-        for i in range(0, len(markets)):
-            market = markets[i]
+        for market_ in markets:
+            market = market_
             future = ('maintMarginPercent' in market)
             spot = not future
             marketType = 'spot' if spot else 'future'
@@ -659,10 +659,10 @@ class binance(Exchange):
         #     }
         #
         result = {'info': response}
-        if (type == 'spot') or (type == 'margin'):
+        if type in ['spot', 'margin']:
             balances = self.safe_value_2(response, 'balances', 'userAssets', [])
-            for i in range(0, len(balances)):
-                balance = balances[i]
+            for balance_ in balances:
+                balance = balance_
                 currencyId = self.safe_string(balance, 'asset')
                 code = self.safe_currency_code(currencyId)
                 account = self.account()
@@ -671,8 +671,8 @@ class binance(Exchange):
                 result[code] = account
         else:
             balances = self.safe_value(response, 'assets', [])
-            for i in range(0, len(balances)):
-                balance = balances[i]
+            for balance__ in balances:
+                balance = balance__
                 currencyId = self.safe_string(balance, 'asset')
                 code = self.safe_currency_code(currencyId)
                 account = self.account()
@@ -749,9 +749,7 @@ class binance(Exchange):
         return self.parse_ticker(response, market)
 
     def parse_tickers(self, rawTickers, symbols=None):
-        tickers = []
-        for i in range(0, len(rawTickers)):
-            tickers.append(self.parse_ticker(rawTickers[i]))
+        tickers = [self.parse_ticker(rawTicker) for rawTicker in rawTickers]
         return self.filter_by_array(tickers, 'symbol', symbols)
 
     def fetch_bids_asks(self, symbols=None, params={}):
@@ -1059,18 +1057,21 @@ class binance(Exchange):
                 if self.options['parseOrderToPrecision']:
                     remaining = float(self.amount_to_precision(symbol, remaining))
                 remaining = max(remaining, 0.0)
-            if price is not None:
-                if cost is None:
-                    cost = price * filled
+            if price is not None and cost is None:
+                cost = price * filled
         id = self.safe_string(order, 'orderId')
         type = self.safe_string_lower(order, 'type')
         if type == 'market':
-            if price == 0.0:
-                if (cost is not None) and (filled is not None):
-                    if (cost > 0) and (filled > 0):
-                        price = cost / filled
-                        if self.options['parseOrderToPrecision']:
-                            price = float(self.price_to_precision(symbol, price))
+            if (
+                price == 0.0
+                and (cost is not None)
+                and (filled is not None)
+                and (cost > 0)
+                and (filled > 0)
+            ):
+                price = cost / filled
+                if self.options['parseOrderToPrecision']:
+                    price = float(self.price_to_precision(symbol, price))
         elif type == 'limit_maker':
             type = 'limit'
         side = self.safe_string_lower(order, 'side')
@@ -1169,11 +1170,11 @@ class binance(Exchange):
         if uppercaseType == 'LIMIT':
             priceIsRequired = True
             timeInForceIsRequired = True
-        elif (uppercaseType == 'STOP_LOSS') or (uppercaseType == 'TAKE_PROFIT'):
+        elif uppercaseType in ['STOP_LOSS', 'TAKE_PROFIT']:
             stopPriceIsRequired = True
             if market['future']:
                 priceIsRequired = True
-        elif (uppercaseType == 'STOP_LOSS_LIMIT') or (uppercaseType == 'TAKE_PROFIT_LIMIT'):
+        elif uppercaseType in ['STOP_LOSS_LIMIT', 'TAKE_PROFIT_LIMIT']:
             stopPriceIsRequired = True
             priceIsRequired = True
             timeInForceIsRequired = True
@@ -1449,11 +1450,11 @@ class binance(Exchange):
         results = self.safe_value(response, 'results', {})
         rows = self.safe_value(results, 'rows', [])
         data = []
-        for i in range(0, len(rows)):
-            logs = rows[i]['logs']
-            for j in range(0, len(logs)):
-                logs[j]['isDustTrade'] = True
-                data.append(logs[j])
+        for row in rows:
+            logs = row['logs']
+            for log in logs:
+                log['isDustTrade'] = True
+                data.append(log)
         trades = self.parse_trades(data, None, since, limit)
         return self.filter_by_since_limit(trades, since, limit)
 
@@ -1499,9 +1500,8 @@ class binance(Exchange):
             cost = self.sum(self.safe_float(trade, 'transferedAmount'), fee['cost'])
             side = 'sell'
         price = None
-        if cost is not None:
-            if amount:
-                price = cost / amount
+        if cost is not None and amount:
+            price = cost / amount
         id = None
         type = None
         takerOrMaker = None
@@ -1633,9 +1633,8 @@ class binance(Exchange):
         id = self.safe_string(transaction, 'id')
         address = self.safe_string(transaction, 'address')
         tag = self.safe_string(transaction, 'addressTag')  # set but unused
-        if tag is not None:
-            if len(tag) < 1:
-                tag = None
+        if tag is not None and len(tag) < 1:
+            tag = None
         txid = self.safe_string(transaction, 'txId')
         currencyId = self.safe_string(transaction, 'asset')
         code = self.safe_currency_code(currencyId, currency)
@@ -1717,8 +1716,8 @@ class binance(Exchange):
         detail = self.safe_value(response, 'assetDetail', {})
         ids = list(detail.keys())
         withdrawFees = {}
-        for i in range(0, len(ids)):
-            id = ids[i]
+        for id_ in ids:
+            id = id_
             code = self.safe_currency_code(id)
             withdrawFees[code] = self.safe_float(detail[id], 'withdrawFee')
         return {
@@ -1810,20 +1809,20 @@ class binance(Exchange):
         #
         tradeFee = self.safe_value(response, 'tradeFee', [])
         result = {}
-        for i in range(0, len(tradeFee)):
-            fee = self.parse_trading_fee(tradeFee[i])
+        for item in tradeFee:
+            fee = self.parse_trading_fee(item)
             symbol = fee['symbol']
             result[symbol] = fee
         return result
 
     def sign(self, path, api='public', method='GET', params={}, headers=None, body=None):
-        if not (api in self.urls['api']):
+        if api not in self.urls['api']:
             raise NotSupported(self.id + ' does not have a testnet/sandbox URL for ' + api + ' endpoints')
         url = self.urls['api'][api]
         url += '/' + path
         if api == 'wapi':
             url += '.html'
-        userDataStream = (path == 'userDataStream') or (path == 'listenKey')
+        userDataStream = path in ['userDataStream', 'listenKey']
         if path == 'historicalTrades':
             if self.apiKey:
                 headers = {
@@ -1871,15 +1870,14 @@ class binance(Exchange):
                 headers['Content-Type'] = 'application/x-www-form-urlencoded'
         else:
             # userDataStream endpoints are public, but POST, PUT, DELETE
-            # therefore they don't accept URL query arguments
-            # https://github.com/ccxt/ccxt/issues/5224
-            if not userDataStream:
-                if params:
-                    url += '?' + self.urlencode(params)
+                    # therefore they don't accept URL query arguments
+                    # https://github.com/ccxt/ccxt/issues/5224
+            if not userDataStream and params:
+                url += '?' + self.urlencode(params)
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
 
     def handle_errors(self, code, reason, url, method, headers, body, response, requestHeaders, requestBody):
-        if (code == 418) or (code == 429):
+        if code in [418, 429]:
             raise DDoSProtection(self.id + ' ' + str(code) + ' ' + reason + ' ' + body)
         # error response in a form: {"code": -1013, "msg": "Invalid quantity."}
         # following block cointains legacy checks against message patterns in "msg" property
@@ -1930,6 +1928,6 @@ class binance(Exchange):
     def request(self, path, api='public', method='GET', params={}, headers=None, body=None):
         response = self.fetch2(path, api, method, params, headers, body)
         # a workaround for {"code":-2015,"msg":"Invalid API-key, IP, or permissions for action."}
-        if (api == 'private') or (api == 'wapi'):
+        if api in ['private', 'wapi']:
             self.options['hasAlreadyAuthenticatedSuccessfully'] = True
         return response

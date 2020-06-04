@@ -168,8 +168,8 @@ class dsx(Exchange):
         markets = self.safe_value(response, 'pairs')
         keys = list(markets.keys())
         result = []
-        for i in range(0, len(keys)):
-            id = keys[i]
+        for key in keys:
+            id = key
             market = markets[id]
             baseId = self.safe_string(market, 'base_currency')
             quoteId = self.safe_string(market, 'quoted_currency')
@@ -251,8 +251,8 @@ class dsx(Exchange):
         result = {'info': response}
         funds = self.safe_value(balances, 'funds')
         currencyIds = list(funds.keys())
-        for i in range(0, len(currencyIds)):
-            currencyId = currencyIds[i]
+        for currencyId_ in currencyIds:
+            currencyId = currencyId_
             code = self.safe_currency_code(currencyId)
             balance = self.safe_value(funds, currencyId, {})
             account = self.account()
@@ -282,9 +282,8 @@ class dsx(Exchange):
             symbol = market['symbol']
         # dsx average is inverted, liqui average is not
         average = self.safe_float(ticker, 'avg')
-        if average is not None:
-            if average > 0:
-                average = 1 / average
+        if average is not None and average > 0:
+            average = 1 / average
         last = self.safe_float(ticker, 'last')
         return {
             'symbol': symbol,
@@ -370,9 +369,8 @@ class dsx(Exchange):
             if fee is None:
                 fee = self.calculate_fee(symbol, type, side, amount, price, takerOrMaker)
         cost = None
-        if price is not None:
-            if amount is not None:
-                cost = price * amount
+        if price is not None and amount is not None:
+            cost = price * amount
         return {
             'id': id,
             'order': orderId,
@@ -392,12 +390,12 @@ class dsx(Exchange):
     def parse_trades(self, trades, market=None, since=None, limit=None, params={}):
         result = []
         if isinstance(trades, list):
-            for i in range(0, len(trades)):
-                result.append(self.parse_trade(trades[i], market))
+            for trade_ in trades:
+                result.append(self.parse_trade(trade_, market))
         else:
             ids = list(trades.keys())
-            for i in range(0, len(ids)):
-                id = ids[i]
+            for id_ in ids:
+                id = id_
                 trade = self.parse_trade(trades[id], market)
                 result.append(self.extend(trade, {'id': id}, params))
         result = self.sort_by(result, 'timestamp')
@@ -455,10 +453,10 @@ class dsx(Exchange):
         response = self.publicGetDepthPair(self.extend(request, params))
         result = {}
         ids = list(response.keys())
-        for i in range(0, len(ids)):
-            id = ids[i]
+        for id_ in ids:
+            id = id_
             symbol = id
-            if id in self.markets_by_id:
+            if symbol in self.markets_by_id:
                 market = self.markets_by_id[id]
                 symbol = market['symbol']
             result[symbol] = self.parse_order_book(response[id])
@@ -511,12 +509,12 @@ class dsx(Exchange):
         #
         result = {}
         keys = list(tickers.keys())
-        for k in range(0, len(keys)):
-            id = keys[k]
+        for key in keys:
+            id = key
             ticker = tickers[id]
             symbol = id
             market = None
-            if id in self.markets_by_id:
+            if symbol in self.markets_by_id:
                 market = self.markets_by_id[id]
                 symbol = market['symbol']
             result[symbol] = self.parse_ticker(ticker, market)
@@ -750,10 +748,9 @@ class dsx(Exchange):
         price = self.safe_float(order, 'rate')
         filled = None
         cost = None
-        if amount is not None:
-            if remaining is not None:
-                filled = amount - remaining
-                cost = price * filled
+        if amount is not None and remaining is not None:
+            filled = amount - remaining
+            cost = price * filled
         orderType = self.safe_string(order, 'orderType')
         side = self.safe_string(order, 'type')
         fee = None
@@ -765,8 +762,8 @@ class dsx(Exchange):
             trades = self.parse_trades(deals)
             feeCost = None
             feeCurrency = None
-            for i in range(0, len(trades)):
-                trade = trades[i]
+            for trade_ in trades:
+                trade = trade_
                 if feeCost is None:
                     feeCost = 0
                 feeCost = self.sum(feeCost, trade['fee']['cost'])
@@ -837,8 +834,8 @@ class dsx(Exchange):
     def parse_orders_by_id(self, orders, symbol=None, since=None, limit=None):
         ids = list(orders.keys())
         result = []
-        for i in range(0, len(ids)):
-            id = ids[i]
+        for id_ in ids:
+            id = id_
             order = self.parse_order(self.extend({
                 'id': str(id),
             }, orders[id]))
@@ -919,8 +916,8 @@ class dsx(Exchange):
         symbol = None
         if market is not None:
             symbol = market['symbol']
-        for i in range(0, len(ids)):
-            id = ids[i]
+        for id_ in ids:
+            id = id_
             order = self.extend({'id': id}, orders[id])
             result.append(self.extend(self.parse_order(order, market), params))
         return self.filter_by_symbol_since_limit(result, symbol, since, limit)
@@ -1044,8 +1041,7 @@ class dsx(Exchange):
         request = {
             'new': 1,
         }
-        response = self.fetch_deposit_address(code, self.extend(request, params))
-        return response
+        return self.fetch_deposit_address(code, self.extend(request, params))
 
     def fetch_deposit_address(self, code, params={}):
         self.load_markets()
@@ -1101,7 +1097,7 @@ class dsx(Exchange):
     def sign(self, path, api='public', method='GET', params={}, headers=None, body=None):
         url = self.urls['api'][api]
         query = self.omit(params, self.extract_params(path))
-        if api == 'private' or api == 'dwapi':
+        if api in ['private', 'dwapi']:
             url += '/' + self.version + '/' + self.implode_params(path, params)
             self.check_required_credentials()
             nonce = self.nonce()
@@ -1120,11 +1116,10 @@ class dsx(Exchange):
                 url += '?' + self.urlencode(query)
         else:
             url += '/' + self.implode_params(path, params)
-            if method == 'GET':
-                if query:
+            if query:
+                if method == 'GET':
                     url += '?' + self.urlencode(query)
-            else:
-                if query:
+                else:
                     body = self.json(query)
                     headers = {
                         'Content-Type': 'application/json',
@@ -1163,10 +1158,7 @@ class dsx(Exchange):
             #
             success = self.safe_value(response, 'success', False)
             if isinstance(success, basestring):
-                if (success == 'true') or (success == '1'):
-                    success = True
-                else:
-                    success = False
+                success = True if success in ['true', '1'] else False
             if not success:
                 code = self.safe_string(response, 'code')
                 message = self.safe_string(response, 'error')

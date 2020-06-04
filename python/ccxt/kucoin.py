@@ -327,8 +327,8 @@ class kucoin(Exchange):
         #
         data = response['data']
         result = []
-        for i in range(0, len(data)):
-            market = data[i]
+        for datum in data:
+            market = datum
             id = self.safe_string(market, 'symbol')
             baseId, quoteId = id.split('-')
             base = self.safe_currency_code(baseId)
@@ -384,8 +384,8 @@ class kucoin(Exchange):
         #
         responseData = response['data']
         result = {}
-        for i in range(0, len(responseData)):
-            entry = responseData[i]
+        for responseDatum in responseData:
+            entry = responseDatum
             id = self.safe_string(entry, 'currency')
             name = self.safe_string(entry, 'fullName')
             code = self.safe_currency_code(id)
@@ -429,8 +429,8 @@ class kucoin(Exchange):
         #
         data = self.safe_value(response, 'data')
         result = []
-        for i in range(0, len(data)):
-            account = data[i]
+        for datum in data:
+            account = datum
             accountId = self.safe_string(account, 'id')
             currencyId = self.safe_string(account, 'currency')
             code = self.safe_currency_code(currencyId)
@@ -450,8 +450,7 @@ class kucoin(Exchange):
         }
         response = self.privateGetWithdrawalsQuotas(self.extend(request, params))
         data = response['data']
-        withdrawFees = {}
-        withdrawFees[code] = self.safe_float(data, 'withdrawMinFee')
+        withdrawFees = {code: self.safe_float(data, 'withdrawMinFee')}
         return {
             'info': response,
             'withdraw': withdrawFees,
@@ -512,9 +511,8 @@ class kucoin(Exchange):
                 base = self.safe_currency_code(baseId)
                 quote = self.safe_currency_code(quoteId)
                 symbol = base + '/' + quote
-        if symbol is None:
-            if market is not None:
-                symbol = market['symbol']
+        if symbol is None and market is not None:
+            symbol = market['symbol']
         timestamp = self.safe_integer_2(ticker, 'time', 'datetime')
         return {
             'symbol': symbol,
@@ -565,8 +563,8 @@ class kucoin(Exchange):
         data = self.safe_value(response, 'data', {})
         tickers = self.safe_value(data, 'ticker', [])
         result = {}
-        for i in range(0, len(tickers)):
-            ticker = self.parse_ticker(tickers[i])
+        for ticker_ in tickers:
+            ticker = self.parse_ticker(ticker_)
             symbol = self.safe_string(ticker, 'symbol')
             if symbol is not None:
                 result[symbol] = ticker
@@ -694,11 +692,10 @@ class kucoin(Exchange):
     def fetch_order_book(self, symbol, limit=None, params={}):
         level = self.safe_integer(params, 'level', 2)
         levelLimit = str(level)
-        if levelLimit == '2':
-            if limit is not None:
-                if (limit != 20) and (limit != 100):
-                    raise ExchangeError(self.id + ' fetchOrderBook limit argument must be None, 20 or 100')
-                levelLimit += '_' + str(limit)
+        if levelLimit == '2' and limit is not None:
+            if limit not in [20, 100]:
+                raise ExchangeError(self.id + ' fetchOrderBook limit argument must be None, 20 or 100')
+            levelLimit += '_' + str(limit)
         self.load_markets()
         marketId = self.market_id(symbol)
         request = {'symbol': marketId, 'level': levelLimit}
@@ -807,8 +804,7 @@ class kucoin(Exchange):
 
     def cancel_order(self, id, symbol=None, params={}):
         request = {'orderId': id}
-        response = self.privateDeleteOrdersOrderId(self.extend(request, params))
-        return response
+        return self.privateDeleteOrdersOrderId(self.extend(request, params))
 
     def fetch_orders_by_status(self, status, symbol=None, since=None, limit=None, params={}):
         self.load_markets()
@@ -937,9 +933,8 @@ class kucoin(Exchange):
                 quote = self.safe_currency_code(quoteId)
                 symbol = base + '/' + quote
             market = self.safe_value(self.markets_by_id, marketId)
-        if symbol is None:
-            if market is not None:
-                symbol = market['symbol']
+        if symbol is None and market is not None:
+            symbol = market['symbol']
         orderId = self.safe_string(order, 'id')
         type = self.safe_string(order, 'type')
         timestamp = self.safe_integer(order, 'createdAt')
@@ -960,11 +955,15 @@ class kucoin(Exchange):
             'currency': feeCurrency,
             'cost': feeCost,
         }
-        if type == 'market':
-            if price == 0.0:
-                if (cost is not None) and (filled is not None):
-                    if (cost > 0) and (filled > 0):
-                        price = cost / filled
+        if (
+            type == 'market'
+            and price == 0.0
+            and (cost is not None)
+            and (filled is not None)
+            and (cost > 0)
+            and (filled > 0)
+        ):
+            price = cost / filled
         clientOrderId = self.safe_string(order, 'clientOid')
         return {
             'id': orderId,
@@ -1059,10 +1058,7 @@ class kucoin(Exchange):
         #
         data = self.safe_value(response, 'data', {})
         trades = None
-        if parseResponseData:
-            trades = data
-        else:
-            trades = self.safe_value(data, 'items', [])
+        trades = data if parseResponseData else self.safe_value(data, 'items', [])
         return self.parse_trades(trades, market, since, limit)
 
     def fetch_trades(self, symbol, since=None, limit=None, params={}):
@@ -1181,9 +1177,8 @@ class kucoin(Exchange):
                 base = self.safe_currency_code(baseId)
                 quote = self.safe_currency_code(quoteId)
                 symbol = base + '/' + quote
-        if symbol is None:
-            if market is not None:
-                symbol = market['symbol']
+        if symbol is None and market is not None:
+            symbol = market['symbol']
         id = self.safe_string_2(trade, 'tradeId', 'id')
         orderId = self.safe_string(trade, 'orderId')
         takerOrMaker = self.safe_string(trade, 'liquidity')
@@ -1203,9 +1198,8 @@ class kucoin(Exchange):
         if feeCost is not None:
             feeCurrencyId = self.safe_string(trade, 'feeCurrency')
             feeCurrency = self.safe_currency_code(feeCurrencyId)
-            if feeCurrency is None:
-                if market is not None:
-                    feeCurrency = market['quote'] if (side == 'sell') else market['base']
+            if feeCurrency is None and market is not None:
+                feeCurrency = market['quote'] if (side == 'sell') else market['base']
             fee = {
                 'cost': feeCost,
                 'currency': feeCurrency,
@@ -1213,10 +1207,8 @@ class kucoin(Exchange):
             }
         type = self.safe_string(trade, 'type')
         cost = self.safe_float_2(trade, 'funds', 'dealValue')
-        if cost is None:
-            if amount is not None:
-                if price is not None:
-                    cost = amount * price
+        if cost is None and amount is not None and price is not None:
+            cost = amount * price
         return {
             'info': trade,
             'id': id,
@@ -1310,10 +1302,8 @@ class kucoin(Exchange):
         if txid is not None:
             txidParts = txid.split('@')
             numTxidParts = len(txidParts)
-            if numTxidParts > 1:
-                if address is None:
-                    if len(txidParts[1]) > 1:
-                        address = txidParts[1]
+            if numTxidParts > 1 and address is None and len(txidParts[1]) > 1:
+                address = txidParts[1]
             txid = txidParts[0]
         type = 'withdrawal' if (txid is None) else 'deposit'
         rawStatus = self.safe_string(transaction, 'status')
@@ -1333,7 +1323,7 @@ class kucoin(Exchange):
         timestamp = self.safe_integer_2(transaction, 'createdAt', 'createAt')
         id = self.safe_string(transaction, 'id')
         updated = self.safe_integer(transaction, 'updatedAt')
-        isV1 = not ('createdAt' in transaction)
+        isV1 = 'createdAt' not in transaction
         # if it's a v1 structure
         if isV1:
             type = 'withdrawal' if ('address' in transaction) else 'deposit'
@@ -1500,8 +1490,8 @@ class kucoin(Exchange):
         #
         data = self.safe_value(response, 'data', [])
         result = {'info': response}
-        for i in range(0, len(data)):
-            balance = data[i]
+        for datum in data:
+            balance = datum
             balanceType = self.safe_string(balance, 'type')
             if balanceType == type:
                 currencyId = self.safe_string(balance, 'currency')
@@ -1521,8 +1511,8 @@ class kucoin(Exchange):
         currency = self.currency(code)
         accountId = self.safe_string(params, 'accountId')
         if accountId is None:
-            for i in range(0, len(self.accounts)):
-                account = self.accounts[i]
+            for account_ in self.accounts:
+                account = account_
                 if account['currency'] == code and account['type'] == 'main':
                     accountId = account['id']
                     break

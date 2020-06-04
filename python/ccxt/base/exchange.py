@@ -494,8 +494,8 @@ class Exchange(object):
     def find_broadly_matched_key(self, broad, string):
         """A helper method for matching error strings exactly vs broadly"""
         keys = list(broad.keys())
-        for i in range(0, len(keys)):
-            key = keys[i]
+        for key_ in keys:
+            key = key_
             if string.find(key) >= 0:
                 return key
         return None
@@ -529,7 +529,7 @@ class Exchange(object):
         self.logger.debug("%s %s, Request: %s %s", method, url, request_headers, body)
 
         request_body = body
-        if body:
+        if request_body:
             body = body.encode()
 
         self.session.cookies.clear()
@@ -599,9 +599,10 @@ class Exchange(object):
         string_code = str(http_status_code)
         if string_code in self.httpExceptions:
             error = self.httpExceptions[string_code]
-            if error == ExchangeNotAvailable:
-                if re.search('(cloudflare|incapsula|overload|ddos)', body, flags=re.IGNORECASE):
-                    error = DDoSProtection
+            if error == ExchangeNotAvailable and re.search(
+                '(cloudflare|incapsula|overload|ddos)', body, flags=re.IGNORECASE
+            ):
+                error = DDoSProtection
         if error:
             raise error(' '.join([method, url, string_code, http_status_text, body]))
 
@@ -632,7 +633,7 @@ class Exchange(object):
         if dictionary is None or key is None:
             return False
         if isinstance(dictionary, list):
-            if isinstance(key, int) and 0 <= key and key < len(dictionary):
+            if isinstance(key, int) and key >= 0 and key < len(dictionary):
                 return dictionary[key] is not None
             else:
                 return False
@@ -885,18 +886,18 @@ class Exchange(object):
 
     @staticmethod
     def omit(d, *args):
-        if isinstance(d, dict):
-            result = d.copy()
-            for arg in args:
-                if type(arg) is list:
-                    for key in arg:
-                        if key in result:
-                            del result[key]
-                else:
-                    if arg in result:
-                        del result[arg]
-            return result
-        return d
+        if not isinstance(d, dict):
+            return d
+        result = d.copy()
+        for arg in args:
+            if type(arg) is list:
+                for key in arg:
+                    if key in result:
+                        del result[key]
+            else:
+                if arg in result:
+                    del result[arg]
+        return result
 
     @staticmethod
     def unique(array):
@@ -912,7 +913,7 @@ class Exchange(object):
 
     @staticmethod
     def sum(*args):
-        return sum([arg for arg in args if isinstance(arg, (float, int))])
+        return sum(arg for arg in args if isinstance(arg, (float, int)))
 
     @staticmethod
     def ordered(array):
@@ -971,10 +972,7 @@ class Exchange(object):
 
     @staticmethod
     def rfc2616(self, timestamp=None):
-        if timestamp is None:
-            ts = datetime.datetime.now()
-        else:
-            ts = timestamp
+        ts = datetime.datetime.now() if timestamp is None else timestamp
         stamp = mktime(ts.timetuple())
         return format_date_time(stamp)
 
@@ -1064,14 +1062,14 @@ class Exchange(object):
     def binary_concat(*args):
         result = bytes()
         for arg in args:
-            result = result + arg
+            result += arg
         return result
 
     @staticmethod
     def binary_concat_array(array):
         result = bytes()
         for element in array:
-            result = result + element
+            result += element
         return result
 
     @staticmethod
@@ -1165,9 +1163,11 @@ class Exchange(object):
 
     @staticmethod
     def is_json_encoded_object(input):
-        return (isinstance(input, basestring) and
-                (len(input) >= 2) and
-                ((input[0] == '{') or (input[0] == '[')))
+        return (
+            isinstance(input, basestring)
+            and len(input) >= 2
+            and input[0] in ['{', '[']
+        )
 
     @staticmethod
     def encode(string):
@@ -1216,9 +1216,8 @@ class Exchange(object):
 
     def currency_id(self, commonCode):
 
-        if self.currencies:
-            if commonCode in self.currencies:
-                return self.currencies[commonCode]['id']
+        if self.currencies and commonCode in self.currencies:
+            return self.currencies[commonCode]['id']
 
         currencyIds = {v: k for k, v in self.commonCurrencies.items()}
         return self.safe_string(currencyIds, commonCode, commonCode)
@@ -1244,7 +1243,7 @@ class Exchange(object):
 
     def set_markets(self, markets, currencies=None):
         values = list(markets.values()) if type(markets) is dict else markets
-        for i in range(0, len(values)):
+        for i in range(len(values)):
             values[i] = self.extend(
                 self.fees['trading'],
                 {'precision': self.precision, 'limits': self.limits},
@@ -1288,11 +1287,10 @@ class Exchange(object):
         return self.markets
 
     def load_markets(self, reload=False, params={}):
-        if not reload:
-            if self.markets:
-                if not self.markets_by_id:
-                    return self.set_markets(self.markets)
-                return self.markets
+        if not reload and self.markets:
+            if not self.markets_by_id:
+                return self.set_markets(self.markets)
+            return self.markets
         currencies = None
         if self.has['fetchCurrencies']:
             currencies = self.fetch_currencies()
@@ -1300,20 +1298,16 @@ class Exchange(object):
         return self.set_markets(markets, currencies)
 
     def load_accounts(self, reload=False, params={}):
-        if reload:
-            self.accounts = self.fetch_accounts(params)
+        if not reload and self.accounts:
+            return self.accounts
         else:
-            if self.accounts:
-                return self.accounts
-            else:
-                self.accounts = self.fetch_accounts(params)
+            self.accounts = self.fetch_accounts(params)
         self.accountsById = self.index_by(self.accounts, 'id')
         return self.accounts
 
     def load_fees(self, reload=False):
-        if not reload:
-            if self.loaded_fees != Exchange.loaded_fees:
-                return self.loaded_fees
+        if not reload and self.loaded_fees != Exchange.loaded_fees:
+            return self.loaded_fees
         self.loaded_fees = self.deep_extend(self.loaded_fees, self.fetch_fees())
         return self.loaded_fees
 
@@ -1413,7 +1407,7 @@ class Exchange(object):
             if limit and (len(result) >= limit):
                 break
             ohlcv = self.parse_ohlcv(ohlcvs[i], market, timeframe, since, limit)
-            i = i + 1
+            i += 1
             if since and (ohlcv[0] < since):
                 continue
             result.append(ohlcv)
@@ -1459,15 +1453,24 @@ class Exchange(object):
         balance['used'] = {}
         balance['total'] = {}
         for currency in currencies:
-            if balance[currency].get('total') is None:
-                if balance[currency].get('free') is not None and balance[currency].get('used') is not None:
-                    balance[currency]['total'] = self.sum(balance[currency].get('free'), balance[currency].get('used'))
-            if balance[currency].get('free') is None:
-                if balance[currency].get('total') is not None and balance[currency].get('used') is not None:
-                    balance[currency]['free'] = self.sum(balance[currency]['total'], -balance[currency]['used'])
-            if balance[currency].get('used') is None:
-                if balance[currency].get('total') is not None and balance[currency].get('free') is not None:
-                    balance[currency]['used'] = self.sum(balance[currency]['total'], -balance[currency]['free'])
+            if (
+                balance[currency].get('total') is None
+                and balance[currency].get('free') is not None
+                and balance[currency].get('used') is not None
+            ):
+                balance[currency]['total'] = self.sum(balance[currency].get('free'), balance[currency].get('used'))
+            if (
+                balance[currency].get('free') is None
+                and balance[currency].get('total') is not None
+                and balance[currency].get('used') is not None
+            ):
+                balance[currency]['free'] = self.sum(balance[currency]['total'], -balance[currency]['used'])
+            if (
+                balance[currency].get('used') is None
+                and balance[currency].get('total') is not None
+                and balance[currency].get('free') is not None
+            ):
+                balance[currency]['used'] = self.sum(balance[currency]['total'], -balance[currency]['free'])
             balance['free'][currency] = balance[currency]['free']
             balance['used'][currency] = balance[currency]['used']
             balance['total'][currency] = balance[currency]['total']
@@ -1503,13 +1506,14 @@ class Exchange(object):
         return self.fetch_funding_fees(params)
 
     def load_trading_limits(self, symbols=None, reload=False, params={}):
-        if self.has['fetchTradingLimits']:
-            if reload or not('limitsLoaded' in list(self.options.keys())):
-                response = self.fetch_trading_limits(symbols)
-                for i in range(0, len(symbols)):
-                    symbol = symbols[i]
-                    self.markets[symbol] = self.deep_extend(self.markets[symbol], response[symbol])
-                self.options['limitsLoaded'] = self.milliseconds()
+        if self.has['fetchTradingLimits'] and (
+            reload or 'limitsLoaded' not in list(self.options.keys())
+        ):
+            response = self.fetch_trading_limits(symbols)
+            for symbol_ in symbols:
+                symbol = symbol_
+                self.markets[symbol] = self.deep_extend(self.markets[symbol], response[symbol])
+            self.options['limitsLoaded'] = self.milliseconds()
         return self.markets
 
     def fetch_ohlcv(self, symbol, timeframe='1m', since=None, limit=None, params={}):
@@ -1533,33 +1537,24 @@ class Exchange(object):
         return self.parse_ohlcvs(result, market, timeframe, since, limit)
 
     def convert_trading_view_to_ohlcv(self, ohlcvs, t='t', o='o', h='h', l='l', c='c', v='v', ms=False):  # noqa E741
-        result = []
-        for i in range(0, len(ohlcvs[t])):
-            result.append([
-                ohlcvs[t][i] if ms else (ohlcvs[t][i] * 1000),
-                ohlcvs[o][i],
-                ohlcvs[h][i],
-                ohlcvs[l][i],
-                ohlcvs[c][i],
-                ohlcvs[v][i],
-            ])
-        return result
+        return [[
+                    ohlcvs[t][i] if ms else (ohlcvs[t][i] * 1000),
+                    ohlcvs[o][i],
+                    ohlcvs[h][i],
+                    ohlcvs[l][i],
+                    ohlcvs[c][i],
+                    ohlcvs[v][i],
+                ] for i in range(len(ohlcvs[t]))]
 
     def convert_ohlcv_to_trading_view(self, ohlcvs, t='t', o='o', h='h', l='l', c='c', v='v', ms=False):  # noqa E741
-        result = {}
-        result[t] = []
-        result[o] = []
-        result[h] = []
-        result[l] = []
-        result[c] = []
-        result[v] = []
-        for i in range(0, len(ohlcvs)):
-            result[t].append(ohlcvs[i][0] if ms else int(ohlcvs[i][0] / 1000))
-            result[o].append(ohlcvs[i][1])
-            result[h].append(ohlcvs[i][2])
-            result[l].append(ohlcvs[i][3])
-            result[c].append(ohlcvs[i][4])
-            result[v].append(ohlcvs[i][5])
+        result = {t: [], o: [], h: [], l: [], c: [], v: []}
+        for ohlcv in ohlcvs:
+            result[t].append(ohlcv[0] if ms else int(ohlcv[0] / 1000))
+            result[o].append(ohlcv[1])
+            result[h].append(ohlcv[2])
+            result[l].append(ohlcv[3])
+            result[c].append(ohlcv[4])
+            result[v].append(ohlcv[5])
         return result
 
     def build_ohlcv(self, trades, timeframe='1m', since=None, limit=None):
@@ -1568,7 +1563,7 @@ class Exchange(object):
         (high, low, close, volume) = (2, 3, 4, 5)
         num_trades = len(trades)
         oldest = (num_trades - 1) if limit is None else min(num_trades - 1, limit)
-        for i in range(0, oldest):
+        for i in range(oldest):
             trade = trades[i]
             if (since is not None) and (trade['timestamp'] < since):
                 continue
@@ -1706,10 +1701,10 @@ class Exchange(object):
             return self.index_by(objects, key) if indexed else objects
 
         result = []
-        for i in range(0, len(objects)):
-            value = objects[i][key] if key in objects[i] else None
+        for object_ in objects:
+            value = object_[key] if key in object_ else None
             if value in values:
-                result.append(objects[i])
+                result.append(object_)
 
         return self.index_by(result, key) if indexed else result
 
@@ -1936,7 +1931,7 @@ class Exchange(object):
     def _convertECSignatureToSignatureHex(self, signature):
         # https://github.com/0xProject/0x-monorepo/blob/development/packages/order-utils/src/signature_utils.ts
         v = signature["v"]
-        if v != 27 and v != 28:
+        if v not in [27, 28]:
             v = v + 27
         return (
             hex(v) +
@@ -1990,8 +1985,7 @@ class Exchange(object):
         #     }
         #
         message_hash = self.hashMessage(message)
-        signature = self.signHash(message_hash[-64:], privateKey[-64:])
-        return signature
+        return self.signHash(message_hash[-64:], privateKey[-64:])
 
     def oath(self):
         if self.twofa is not None:

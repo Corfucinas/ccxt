@@ -213,8 +213,8 @@ class currencycom(Exchange):
             self.load_time_difference()
         markets = self.safe_value(response, 'symbols')
         result = []
-        for i in range(0, len(markets)):
-            market = markets[i]
+        for market_ in markets:
+            market = market_
             id = self.safe_string(market, 'symbol')
             baseId = self.safe_string(market, 'baseAsset')
             quoteId = self.safe_string(market, 'quoteAsset')
@@ -343,8 +343,8 @@ class currencycom(Exchange):
         #
         accounts = self.safe_value(response, 'balances', [])
         result = []
-        for i in range(0, len(accounts)):
-            account = accounts[i]
+        for account_ in accounts:
+            account = account_
             accountId = self.safe_integer(account, 'accountId')
             currencyId = self.safe_string(account, 'asset')
             currencyCode = self.safe_currency_code(currencyId)
@@ -392,8 +392,8 @@ class currencycom(Exchange):
         #
         result = {'info': response}
         balances = self.safe_value(response, 'balances', [])
-        for i in range(0, len(balances)):
-            balance = balances[i]
+        for balance_ in balances:
+            balance = balance_
             currencyId = self.safe_string(balance, 'asset')
             code = self.safe_currency_code(currencyId)
             account = self.account()
@@ -536,9 +536,7 @@ class currencycom(Exchange):
         return self.parse_ticker(response, market)
 
     def parse_tickers(self, rawTickers, symbols=None):
-        tickers = []
-        for i in range(0, len(rawTickers)):
-            tickers.append(self.parse_ticker(rawTickers[i]))
+        tickers = [self.parse_ticker(rawTicker) for rawTicker in rawTickers]
         return self.filter_by_array(tickers, 'symbol', symbols)
 
     def fetch_tickers(self, symbols=None, params={}):
@@ -763,16 +761,19 @@ class currencycom(Exchange):
                 if self.options['parseOrderToPrecision']:
                     remaining = float(self.amount_to_precision(symbol, remaining))
                 remaining = max(remaining, 0.0)
-            if price is not None:
-                if cost is None:
-                    cost = price * filled
+            if price is not None and cost is None:
+                cost = price * filled
         id = self.safe_string(order, 'orderId')
         type = self.safe_string_lower(order, 'type')
-        if type == 'market':
-            if price == 0.0:
-                if (cost is not None) and (filled is not None):
-                    if (cost > 0) and (filled > 0):
-                        price = cost / filled
+        if (
+            type == 'market'
+            and price == 0.0
+            and (cost is not None)
+            and (filled is not None)
+            and (cost > 0)
+            and (filled > 0)
+        ):
+            price = cost / filled
         side = self.safe_string_lower(order, 'side')
         fee = None
         trades = None
@@ -962,7 +963,7 @@ class currencycom(Exchange):
             headers = {
                 'X-MBX-APIKEY': self.apiKey,
             }
-            if (method == 'GET') or (method == 'DELETE'):
+            if method in ['GET', 'DELETE']:
                 url += '?' + query
             else:
                 body = query
@@ -973,7 +974,7 @@ class currencycom(Exchange):
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
 
     def handle_errors(self, code, reason, url, method, headers, body, response, requestHeaders, requestBody):
-        if (code == 418) or (code == 429):
+        if code in [418, 429]:
             raise DDoSProtection(self.id + ' ' + str(code) + ' ' + reason + ' ' + body)
         # error response in a form: {"code": -1013, "msg": "Invalid quantity."}
         # following block cointains legacy checks against message patterns in "msg" property

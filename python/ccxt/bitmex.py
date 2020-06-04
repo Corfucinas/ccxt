@@ -182,8 +182,8 @@ class bitmex(Exchange):
     def fetch_markets(self, params={}):
         response = self.publicGetInstrumentActiveAndIndices(params)
         result = []
-        for i in range(0, len(response)):
-            market = response[i]
+        for item in response:
+            market = item
             active = (market['state'] != 'Unlisted')
             id = market['symbol']
             baseId = market['underlying']
@@ -266,8 +266,8 @@ class bitmex(Exchange):
         }
         response = self.privateGetUserMargin(self.extend(request, params))
         result = {'info': response}
-        for i in range(0, len(response)):
-            balance = response[i]
+        for item in response:
+            balance = item
             currencyId = self.safe_string(balance, 'currency')
             code = self.safe_currency_code(currencyId)
             account = self.account()
@@ -295,8 +295,8 @@ class bitmex(Exchange):
             'datetime': None,
             'nonce': None,
         }
-        for i in range(0, len(response)):
-            order = response[i]
+        for item in response:
+            order = item
             side = 'asks' if (order['side'] == 'Sell') else 'bids'
             amount = self.safe_float(order, 'size')
             price = self.safe_float(order, 'price')
@@ -680,8 +680,8 @@ class bitmex(Exchange):
         self.load_markets()
         response = self.publicGetInstrumentActiveAndIndices(params)
         result = {}
-        for i in range(0, len(response)):
-            ticker = self.parse_ticker(response[i])
+        for item in response:
+            ticker = self.parse_ticker(item)
             symbol = self.safe_string(ticker, 'symbol')
             if symbol is not None:
                 result[symbol] = ticker
@@ -876,10 +876,10 @@ class bitmex(Exchange):
         result = self.parse_ohlcvs(response, market, timeframe, since, limit)
         if fetchOHLCVOpenTimestamp:
             # bitmex returns the candle's close timestamp - https://github.com/ccxt/ccxt/issues/4446
-            # we can emulate the open timestamp by shifting all the timestamps one place
-            # so the previous close becomes the current open, and we drop the first candle
-            for i in range(0, len(result)):
-                result[i][0] = result[i][0] - duration
+                    # we can emulate the open timestamp by shifting all the timestamps one place
+                    # so the previous close becomes the current open, and we drop the first candle
+            for item in result:
+                item[0] = item[0] - duration
         return result
 
     def parse_trade(self, trade, market=None):
@@ -1034,9 +1034,8 @@ class bitmex(Exchange):
         amount = self.safe_float(order, 'orderQty')
         filled = self.safe_float(order, 'cumQty', 0.0)
         remaining = None
-        if amount is not None:
-            if filled is not None:
-                remaining = max(amount - filled, 0.0)
+        if amount is not None and filled is not None:
+            remaining = max(amount - filled, 0.0)
         average = self.safe_float(order, 'avgPx')
         cost = None
         if filled is not None:
@@ -1162,9 +1161,11 @@ class bitmex(Exchange):
         response = self.privateDeleteOrder(self.extend(request, params))
         order = self.safe_value(response, 0, {})
         error = self.safe_string(order, 'error')
-        if error is not None:
-            if error.find('Unable to cancel order due to existing state') >= 0:
-                raise OrderNotFound(self.id + ' cancelOrder() failed: ' + error)
+        if (
+            error is not None
+            and error.find('Unable to cancel order due to existing state') >= 0
+        ):
+            raise OrderNotFound(self.id + ' cancelOrder() failed: ' + error)
         order = self.parse_order(order)
         self.orders[order['id']] = order
         return self.extend({'info': response}, order)
@@ -1221,9 +1222,7 @@ class bitmex(Exchange):
     def is_fiat(self, currency):
         if currency == 'EUR':
             return True
-        if currency == 'PLN':
-            return True
-        return False
+        return currency == 'PLN'
 
     def withdraw(self, code, amount, address, tag=None, params={}):
         self.check_address(address)
@@ -1284,9 +1283,8 @@ class bitmex(Exchange):
             expires = str(expires)
             auth += expires
             headers['api-expires'] = expires
-            if method == 'POST' or method == 'PUT' or method == 'DELETE':
-                if params:
-                    body = self.json(params)
-                    auth += body
+            if method in ['POST', 'PUT', 'DELETE'] and params:
+                body = self.json(params)
+                auth += body
             headers['api-signature'] = self.hmac(self.encode(auth), self.encode(self.secret))
         return {'url': url, 'method': method, 'body': body, 'headers': headers}

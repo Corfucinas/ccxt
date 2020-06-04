@@ -263,8 +263,8 @@ class bitvavo(Exchange):
         #     ]
         #
         result = []
-        for i in range(0, len(response)):
-            market = response[i]
+        for item in response:
+            market = item
             id = self.safe_string(market, 'market')
             baseId = self.safe_string(market, 'base')
             quoteId = self.safe_string(market, 'quote')
@@ -343,8 +343,8 @@ class bitvavo(Exchange):
         #     ]
         #
         result = {}
-        for i in range(0, len(response)):
-            currency = response[i]
+        for item in response:
+            currency = item
             id = self.safe_string(currency, 'symbol')
             code = self.safe_currency_code(id)
             depositStatus = self.safe_value(currency, 'depositStatus')
@@ -455,34 +455,31 @@ class bitvavo(Exchange):
             if open > 0:
                 percentage = change / open * 100
             average = self.sum(open, last) / 2
-        result = {
-            'symbol': symbol,
-            'timestamp': timestamp,
-            'datetime': self.iso8601(timestamp),
-            'high': self.safe_float(ticker, 'high'),
-            'low': self.safe_float(ticker, 'low'),
-            'bid': self.safe_float(ticker, 'bid'),
-            'bidVolume': self.safe_float(ticker, 'bidSize'),
-            'ask': self.safe_float(ticker, 'ask'),
-            'askVolume': self.safe_float(ticker, 'askSize'),
-            'vwap': vwap,
-            'open': open,
-            'close': last,
-            'last': last,
-            'previousClose': None,  # previous day close
-            'change': change,
-            'percentage': percentage,
-            'average': average,
-            'baseVolume': baseVolume,
-            'quoteVolume': quoteVolume,
-            'info': ticker,
-        }
-        return result
+        return {
+                'symbol': symbol,
+                'timestamp': timestamp,
+                'datetime': self.iso8601(timestamp),
+                'high': self.safe_float(ticker, 'high'),
+                'low': self.safe_float(ticker, 'low'),
+                'bid': self.safe_float(ticker, 'bid'),
+                'bidVolume': self.safe_float(ticker, 'bidSize'),
+                'ask': self.safe_float(ticker, 'ask'),
+                'askVolume': self.safe_float(ticker, 'askSize'),
+                'vwap': vwap,
+                'open': open,
+                'close': last,
+                'last': last,
+                'previousClose': None,  # previous day close
+                'change': change,
+                'percentage': percentage,
+                'average': average,
+                'baseVolume': baseVolume,
+                'quoteVolume': quoteVolume,
+                'info': ticker,
+            }
 
     def parse_tickers(self, tickers, symbols=None):
-        result = []
-        for i in range(0, len(tickers)):
-            result.append(self.parse_ticker(tickers[i]))
+        result = [self.parse_ticker(ticker) for ticker in tickers]
         return self.filter_by_array(result, 'symbol', symbols)
 
     def fetch_tickers(self, symbols=None, params={}):
@@ -729,8 +726,8 @@ class bitvavo(Exchange):
         #     ]
         #
         result = {'info': response}
-        for i in range(0, len(response)):
-            balance = response[i]
+        for item in response:
+            balance = item
             currencyId = self.safe_string(balance, 'symbol')
             code = self.safe_currency_code(currencyId)
             account = {
@@ -1137,9 +1134,8 @@ class bitvavo(Exchange):
             filled = max(0, amount - remaining)
         cost = self.safe_float(order, 'filledAmountQuote')
         average = None
-        if cost is not None:
-            if filled:
-                average = cost / filled
+        if cost is not None and filled:
+            average = cost / filled
         fee = None
         feeCost = self.safe_float(order, 'feePaid')
         if feeCost is not None:
@@ -1399,17 +1395,15 @@ class bitvavo(Exchange):
     def sign(self, path, api='public', method='GET', params={}, headers=None, body=None):
         query = self.omit(params, self.extract_params(path))
         url = '/' + self.version + '/' + self.implode_params(path, params)
-        getOrDelete = (method == 'GET') or (method == 'DELETE')
-        if getOrDelete:
-            if query:
-                url += '?' + self.urlencode(query)
+        getOrDelete = method in ['GET', 'DELETE']
+        if getOrDelete and query:
+            url += '?' + self.urlencode(query)
         if api == 'private':
             self.check_required_credentials()
             payload = ''
-            if not getOrDelete:
-                if query:
-                    body = self.json(query)
-                    payload = body
+            if not getOrDelete and query:
+                body = self.json(query)
+                payload = body
             timestamp = str(self.milliseconds())
             auth = timestamp + method + url + payload
             signature = self.hmac(self.encode(auth), self.encode(self.secret))
