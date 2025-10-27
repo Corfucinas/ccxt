@@ -8,6 +8,7 @@ var functions = require('./src/base/functions.js');
 var errors = require('./src/base/errors.js');
 var alpaca = require('./src/alpaca.js');
 var apex = require('./src/apex.js');
+var arkham = require('./src/arkham.js');
 var ascendex = require('./src/ascendex.js');
 var backpack = require('./src/backpack.js');
 var bequant = require('./src/bequant.js');
@@ -113,6 +114,7 @@ var zaif = require('./src/zaif.js');
 var zonda = require('./src/zonda.js');
 var alpaca$1 = require('./src/pro/alpaca.js');
 var apex$1 = require('./src/pro/apex.js');
+var arkham$1 = require('./src/pro/arkham.js');
 var ascendex$1 = require('./src/pro/ascendex.js');
 var backpack$1 = require('./src/pro/backpack.js');
 var bequant$1 = require('./src/pro/bequant.js');
@@ -184,14 +186,39 @@ var woo$1 = require('./src/pro/woo.js');
 var woofipro$1 = require('./src/pro/woofipro.js');
 var xt$1 = require('./src/pro/xt.js');
 
-// ----------------------------------------------------------------------------
+/*
+
+MIT License
+
+Copyright (c) 2017 Igor Kroitor
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 //-----------------------------------------------------------------------------
 // this is updated by vss.js when building
-const version = '4.5.12';
+const version = '4.5.13';
 Exchange["default"].ccxtVersion = version;
 const exchanges = {
     'alpaca': alpaca["default"],
     'apex': apex["default"],
+    'arkham': arkham["default"],
     'ascendex': ascendex["default"],
     'backpack': backpack["default"],
     'bequant': bequant["default"],
@@ -299,6 +326,7 @@ const exchanges = {
 const pro = {
     'alpaca': alpaca$1["default"],
     'apex': apex$1["default"],
+    'arkham': arkham$1["default"],
     'ascendex': ascendex$1["default"],
     'backpack': backpack$1["default"],
     'bequant': bequant$1["default"],
@@ -423,6 +451,7 @@ exports.UnsubscribeError = errors.UnsubscribeError;
 exports.errors = errors;
 exports.alpaca = alpaca["default"];
 exports.apex = apex["default"];
+exports.arkham = arkham["default"];
 exports.ascendex = ascendex["default"];
 exports.backpack = backpack["default"];
 exports.bequant = bequant["default"];
