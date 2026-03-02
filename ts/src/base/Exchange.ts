@@ -95,7 +95,6 @@ const {
     implodeParams,
     extractParams,
     json,
-    merge,
     binaryConcat,
     hash,
     // ecdsa,
@@ -460,7 +459,6 @@ export default class Exchange {
     implodeParams = implodeParams;
     extractParams = extractParams;
     json = json;
-    merge = merge;
     binaryConcat = binaryConcat;
     hash = hash;
     arrayConcat = arrayConcat;
