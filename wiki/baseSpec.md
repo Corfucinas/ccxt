@@ -4045,6 +4045,7 @@ retrieves the open interest of a contract trading pair
 * [delta](/exchanges/delta.md#fetchopeninterest)
 * [deribit](/exchanges/deribit.md#fetchopeninterest)
 * [gate](/exchanges/gate.md#fetchopeninterest)
+* [gemini](/exchanges/gemini.md#fetchopeninterest)
 * [hibachi](/exchanges/hibachi.md#fetchopeninterest)
 * [hitbtc](/exchanges/hitbtc.md#fetchopeninterest)
 * [htx](/exchanges/htx.md#fetchopeninterest)
