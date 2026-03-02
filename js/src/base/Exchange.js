@@ -36,7 +36,7 @@ import { sha256 } from '../static_dependencies/noble-hashes/sha256.js';
 import { sha1 } from '../static_dependencies/noble-hashes/sha1.js';
 import { exportMnemonicAndPrivateKey, deriveHDKeyFromMnemonic } from '../static_dependencies/dydx-v4-client/onboarding.js';
 import { Long } from '../static_dependencies/dydx-v4-client/helpers.js';
-const { isNode, selfIsDefined, deepExtend, extend, clone, unique, indexBy, sortBy, sortBy2, safeFloat2, groupBy, aggregate, uuid, unCamelCase, precisionFromString, Throttler, capitalize, now, decimalToPrecision, safeValue, safeValue2, safeString, safeString2, seconds, milliseconds, binaryToBase16, numberToBE, base16ToBinary, iso8601, omit, isJsonEncodedObject, safeInteger, sum, omitZero, implodeParams, extractParams, json, merge, binaryConcat, hash, 
+const { isNode, selfIsDefined, deepExtend, extend, clone, unique, indexBy, sortBy, sortBy2, safeFloat2, groupBy, aggregate, uuid, unCamelCase, precisionFromString, Throttler, capitalize, now, decimalToPrecision, safeValue, safeValue2, safeString, safeString2, seconds, milliseconds, binaryToBase16, numberToBE, base16ToBinary, iso8601, omit, isJsonEncodedObject, safeInteger, sum, omitZero, implodeParams, extractParams, json, binaryConcat, hash, 
 // ecdsa,
 arrayConcat, encode, urlencode, hmac, numberToString, roundTimeframe, parseTimeframe, safeInteger2, safeStringLower, parse8601, yyyymmdd, safeStringUpper, safeTimestamp, binaryConcatArray, ymdhms, stringToBase64, decode, uuid22, safeIntegerProduct2, safeIntegerProduct, safeStringLower2, yymmdd, base58ToBinary, binaryToBase58, safeTimestamp2, rawencode, keysort, sort, inArray, isEmpty, filterBy, uuid16, safeFloat, base64ToBinary, safeStringUpper2, urlencodeWithArrayRepeat, microseconds, binaryToBase64, strip, toArray, safeFloatN, safeIntegerN, safeIntegerProductN, safeTimestampN, safeValueN, safeStringN, safeStringLowerN, safeStringUpperN, urlencodeNested, urlencodeBase64, parseDate, ymd, base64ToString, crc32, packb, TRUNCATE, ROUND, DECIMAL_PLACES, NO_PADDING, TICK_SIZE, SIGNIFICANT_DIGITS, sleep, readFile, writeFile, existsFile, getTempDir, } = functions;
 // ----------------------------------------------------------------------------
@@ -199,7 +199,6 @@ export default class Exchange {
         this.implodeParams = implodeParams;
         this.extractParams = extractParams;
         this.json = json;
-        this.merge = merge;
         this.binaryConcat = binaryConcat;
         this.hash = hash;
         this.arrayConcat = arrayConcat;
